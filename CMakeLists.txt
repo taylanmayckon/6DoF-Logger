@@ -22,8 +22,9 @@ project(6DoF-Logger C CXX ASM)
 pico_sdk_init()
 
 include_directories( ${CMAKE_SOURCE_DIR}/lib )
+add_subdirectory(lib/FatFs_SPI)
 
-add_executable(6DoF-Logger 6DoF-Logger.c lib/mpu6050.c)
+add_executable(6DoF-Logger 6DoF-Logger.c lib/hw_config.c lib/mpu6050.c lib/logger.c)
 
 pico_set_program_name(6DoF-Logger "6DoF-Logger")
 pico_set_program_version(6DoF-Logger "0.1")
@@ -33,7 +34,7 @@ pico_enable_stdio_usb(${PROJECT_NAME} 1)
 
 target_link_libraries(${PROJECT_NAME}
         pico_stdlib
-        pico_stdlib 
+        FatFs_SPI
         hardware_gpio
         hardware_adc
         hardware_pwm
