@@ -346,7 +346,6 @@ void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
 
 // Função para atualizar a cor do LED RGB
 bool blink_led = false;
-
 void handle_rgb_led(enum led_states_t led_state, int wrap){
     switch(led_state){
         case INIT_MOUNT_SD:
@@ -381,4 +380,70 @@ void handle_rgb_led(enum led_states_t led_state, int wrap){
             pwm_set_gpio_level(LED_BLUE, blink_led*wrap*0.02);
             break;
     }
+}
+
+// Função para o alerta sonoro com buzzer
+bool beep_buzzer = false;
+
+// enum buzzer_states_t{
+//     INIT_SAVES,
+//     STOP_SAVES,
+//     MOUNT,
+//     UNMOUNT,
+//     IDLE
+// };
+
+void handle_buzzer(enum buzzer_states_t *buzzer_state, int wrap){
+    switch(*buzzer_state){
+        case INIT_SAVES:
+            pwm_set_gpio_level(BUZZER_A, wrap*0.04);
+            pwm_set_gpio_level(BUZZER_B, wrap*0.04);
+            sleep_ms(200);
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            break;
+
+        case STOP_SAVES:
+            pwm_set_gpio_level(BUZZER_A, wrap*0.04);
+            pwm_set_gpio_level(BUZZER_B, wrap*0.04);
+            sleep_ms(250);
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            sleep_ms(50);
+            pwm_set_gpio_level(BUZZER_A, wrap*0.04);
+            pwm_set_gpio_level(BUZZER_B, wrap*0.04);
+            sleep_ms(100);
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            break;
+
+        case MOUNT:
+            pwm_set_gpio_level(BUZZER_A, wrap*0.04);
+            pwm_set_gpio_level(BUZZER_B, wrap*0.04);
+            sleep_ms(100);
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            break;
+        
+        case UNMOUNT:
+            pwm_set_gpio_level(BUZZER_A, wrap*0.04);
+            pwm_set_gpio_level(BUZZER_B, wrap*0.04);
+            sleep_ms(150);
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            sleep_ms(100);
+            pwm_set_gpio_level(BUZZER_A, wrap*0.04);
+            pwm_set_gpio_level(BUZZER_B, wrap*0.04);
+            sleep_ms(150);
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            break;
+
+        case IDLE:
+            pwm_set_gpio_level(BUZZER_A, 0);
+            pwm_set_gpio_level(BUZZER_B, 0);
+            break;
+    }
+
+    *buzzer_state = IDLE;
 }

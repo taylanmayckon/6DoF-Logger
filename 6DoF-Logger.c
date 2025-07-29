@@ -52,8 +52,9 @@ sdcard_cmds_t sdcard_cmds;
 uint wrap = 2000;
 uint clkdiv = 25;
 
-// Enum para o feedback do LED RGB
+// Enums para os feedbacks visuais/sonoros
 enum led_states_t led_state;
+enum buzzer_states_t buzzer_state;
 
 // -> Funções Auxiliares =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Função para configurar o PWM e iniciar com 0% de DC
@@ -86,7 +87,10 @@ void gpio_irq_handler(uint gpio, uint32_t events){
         if(gpio==BUTTON_B){
             if(!sdcard_cmds.save_data) sdcard_cmds.handle_filename = true;
             sdcard_cmds.save_data = !sdcard_cmds.save_data;
-            if(!sdcard_cmds.save_data) led_state = INIT_MOUNT_SD;
+            if(!sdcard_cmds.save_data){
+                led_state = INIT_MOUNT_SD;
+                buzzer_state = STOP_SAVES;
+            }
         }
     }
 }
@@ -124,30 +128,37 @@ int main(){
     led_state = INIT_MOUNT_SD;
     handle_rgb_led(led_state, wrap);
 
+    // Inicializando os Buzzers
+    set_pwm(BUZZER_A, wrap);
+    set_pwm(BUZZER_B, wrap);
+    buzzer_state = IDLE;
+    handle_buzzer(&buzzer_state, wrap);
+
     sdcard_cmds.run_mount = false;
     sdcard_cmds.run_unmount = false;
     sdcard_cmds.is_mounted = false;
     sdcard_cmds.save_data = false;
     sdcard_cmds.handle_filename = false;
 
-    // INIT_MOUNT_SD,
-    // READY_FOR_SAVE,
-    // SAVE_READ_SD,
-    // ERROR
-
     while (true){
-        // Atualiza a cor do LED
+        // buzzer_state = IDLE;
+        handle_buzzer(&buzzer_state, wrap);
         handle_rgb_led(led_state, wrap);
 
         // Atualiza o nome do arquivo, quando necessário
         if(sdcard_cmds.handle_filename){
             handle_filename(&logger_file);
             sdcard_cmds.handle_filename = false;
+            buzzer_state = INIT_SAVES;
+            handle_buzzer(&buzzer_state, wrap);
         }
 
         // Salva os dados, quando necessário
         if(sdcard_cmds.save_data){
+            // Alertas sonoros e visuais
             led_state = SAVE_READ_SD;
+            handle_rgb_led(led_state, wrap);
+
             // Lê os dados do MPU6050
             mpu6050_read_raw(&mpu_raw_data);
             // Processa os dados brutos
@@ -157,13 +168,20 @@ int main(){
             // Salva os dados no cartão SD
             save_imu_data(&logger_file, mpu_data);
         }
+
         else{ // Montagem/desmontagem do SD Card
             if(sdcard_cmds.run_mount){
-                led_state = INIT_MOUNT_SD;
                 printf("[run_mount] Montando o SD...\n");
+                // Alertas sonoros e visuais
+                led_state = INIT_MOUNT_SD;
+                handle_rgb_led(led_state, wrap);
+                buzzer_state = MOUNT;
+                handle_buzzer(&buzzer_state, wrap);
+
                 // Tenta montar e retorna sucesso/erro
                 if(!run_mount()){
                     led_state = ERROR;
+                    handle_rgb_led(led_state, wrap);
                     printf("[ERRO - run_mount] Falha ao montar o SD!\n\n");
                     sdcard_cmds.is_mounted = false;
                     sdcard_cmds.run_mount = false;
@@ -173,15 +191,20 @@ int main(){
                     sdcard_cmds.is_mounted = true;
                     sdcard_cmds.run_mount = false;
                     led_state = READY_FOR_SAVE;
+                    handle_rgb_led(led_state, wrap);
                 }
             }
             if(sdcard_cmds.run_unmount){
                 printf("[run_unmount] Desmontando o SD...\n");
+                led_state = UNMOUNT;
+                handle_rgb_led(led_state, wrap);
+                buzzer_state = B_UNMOUNT;
+                handle_buzzer(&buzzer_state, wrap);
+
                 run_unmount();
                 sdcard_cmds.is_mounted = false;
                 sdcard_cmds.run_unmount = false;
                 printf("[run_unmount] SD desmontado!\n\n");
-                led_state = UNMOUNT;
             }
         }
 

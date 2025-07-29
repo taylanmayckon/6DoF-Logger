@@ -8,6 +8,8 @@
 #define LED_RED 13
 #define LED_GREEN 11
 #define LED_BLUE 12 
+#define BUZZER_A 21
+#define BUZZER_B 10
 
 typedef void (*p_fn_t)();
 
@@ -33,11 +35,20 @@ enum led_states_t{
     ERROR
 };
 
+enum buzzer_states_t{
+    INIT_SAVES,
+    STOP_SAVES,
+    MOUNT,
+    B_UNMOUNT,
+    IDLE
+};
+
 bool run_mount();
 void run_unmount();
 void read_file(const char *filename);
 void handle_filename(logger_file_t *logger_file);
 void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data);
 void handle_rgb_led(enum led_states_t led_state, int wrap);
+void handle_buzzer(enum buzzer_states_t *buzzer_state, int wrap);
 
 #endif
