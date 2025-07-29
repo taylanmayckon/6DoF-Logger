@@ -308,6 +308,27 @@ void read_file(const char *filename){
 }
 
 
+// Função para gerar os nomes automaticamente
+void handle_filename(logger_file_t *logger_file){
+    FILINFO fno;
+    int index = 1;
+    char name[40];
+
+    while(1){
+        sprintf(name, "imu_data%d.csv", index);
+        FRESULT res = f_stat(name, &fno);
+        if(res == FR_NO_FILE){
+            strcpy(logger_file->filename, name);
+            logger_file->index = 0;
+            break;
+        }
+        index++;
+
+        if(index > 999) break; // Prevenção de bug
+    }
+}
+
+
 // Função para armazenar os dados no arquivo *.csv
 void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
     FIL file;
@@ -322,7 +343,7 @@ void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
 
     // Escreve cabeçalho no inicio
     if (f_size(&file) == 0) {
-        char header[] = "index,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll\n";
+        char header[] = "dt,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll\n";
         UINT bw;
         f_write(&file, header, strlen(header), &bw);
     }
@@ -345,5 +366,5 @@ void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
     logger_file->index++;
 
     f_close(&file);
-    printf("[save_imu_data] Dados do ADC salvos no arquivo %s.\n", logger_file->filename);
+    printf("[save_imu_data] Dados do ADC salvos no arquivo %s.\n\n", logger_file->filename);
 }

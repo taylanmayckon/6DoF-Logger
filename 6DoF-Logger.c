@@ -65,6 +65,7 @@ void gpio_irq_handler(uint gpio, uint32_t events){
         
         // Iniciar/parar captura de dados
         if(gpio==BUTTON_B){
+            if(!sdcard_cmds.save_data) sdcard_cmds.handle_filename = true;
             sdcard_cmds.save_data = !sdcard_cmds.save_data;
         }
     }
@@ -100,11 +101,14 @@ int main(){
     sdcard_cmds.run_unmount = false;
     sdcard_cmds.is_mounted = false;
     sdcard_cmds.save_data = false;
-
-    strcpy(logger_file.filename, "imu_data1.csv");
-    logger_file.index = 0;
+    sdcard_cmds.handle_filename = false;
 
     while (true){
+        if(sdcard_cmds.handle_filename){
+            handle_filename(&logger_file);
+            sdcard_cmds.handle_filename = false;
+        }
+
         if(sdcard_cmds.save_data){
             // Lê os dados do MPU6050
             mpu6050_read_raw(&mpu_raw_data);
@@ -121,14 +125,14 @@ int main(){
                 run_mount();
                 sdcard_cmds.is_mounted = true;
                 sdcard_cmds.run_mount = false;
-                printf("[run_mount] SD montado!\n");
+                printf("[run_mount] SD montado!\n\n");
             }
             if(sdcard_cmds.run_unmount){
                 printf("[run_unmount] Desmontando o SD...\n");
                 run_unmount();
                 sdcard_cmds.is_mounted = false;
                 sdcard_cmds.run_unmount = false;
-                printf("[run_unmount] SD desmontado!\n");
+                printf("[run_unmount] SD desmontado!\n\n");
             }
         }
 

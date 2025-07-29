@@ -12,6 +12,7 @@ typedef struct{
     bool is_mounted;
     bool save_data;
     bool stop_saving;
+    bool handle_filename;
 } sdcard_cmds_t;
 
 typedef struct{
@@ -28,6 +29,7 @@ typedef struct{
 void run_mount();
 void run_unmount();
 void read_file(const char *filename);
+void handle_filename(logger_file_t *logger_file);
 void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data);
 
 #endif
