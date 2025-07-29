@@ -19,8 +19,6 @@ static bool logger_enabled;
 static const uint32_t period = 1000;
 static absolute_time_t next_log_time;
 
-static char filename[20] = "adc_data1.txt";
-
 static sd_card_t *sd_get_by_name(const char *const name){
     for (size_t i = 0; i < sd_get_num(); ++i)
         if (0 == strcmp(sd_get_by_num(i)->pcName, name))
@@ -287,68 +285,6 @@ static cmd_def_t cmds[] = {
     {"cat", run_cat, "cat <filename>: Mostra conteúdo do arquivo"},
     {"help", run_help, "help: Mostra comandos disponíveis"}};
 
-
-static void process_stdio(int cRxedChar){
-    static char cmd[256];
-    static size_t ix;
-
-    if (!isprint(cRxedChar) && !isspace(cRxedChar) && '\r' != cRxedChar &&
-        '\b' != cRxedChar && cRxedChar != (char)127)
-        return;
-    printf("%c", cRxedChar); // echo
-    stdio_flush();
-    if (cRxedChar == '\r')
-    {
-        printf("%c", '\n');
-        stdio_flush();
-
-        if (!strnlen(cmd, sizeof cmd))
-        {
-            printf("> ");
-            stdio_flush();
-            return;
-        }
-        char *cmdn = strtok(cmd, " ");
-        if (cmdn)
-        {
-            size_t i;
-            for (i = 0; i < count_of(cmds); ++i)
-            {
-                if (0 == strcmp(cmds[i].command, cmdn))
-                {
-                    (*cmds[i].function)();
-                    break;
-                }
-            }
-            if (count_of(cmds) == i)
-                printf("Command \"%s\" not found\n", cmdn);
-        }
-        ix = 0;
-        memset(cmd, 0, sizeof cmd);
-        printf("\n> ");
-        stdio_flush();
-    }
-    else
-    {
-        if (cRxedChar == '\b' || cRxedChar == (char)127)
-        {
-            if (ix > 0)
-            {
-                ix--;
-                cmd[ix] = '\0';
-            }
-        }
-        else
-        {
-            if (ix < sizeof cmd - 1)
-            {
-                cmd[ix] = cRxedChar;
-                ix++;
-            }
-        }
-    }
-}
-
 // Função para ler o conteúdo de um arquivo e exibir no terminal
 void read_file(const char *filename){
     FIL file;
@@ -372,32 +308,42 @@ void read_file(const char *filename){
 }
 
 
-// Função para capturar dados do ADC e salvar no arquivo *.txt
-// void capture_adc_data_and_save(){
-//     printf("\nCapturando dados do ADC. Aguarde finalização...\n");
-//     FIL file;
-//     FRESULT res = f_open(&file, filename, FA_WRITE | FA_CREATE_ALWAYS);
-//     if (res != FR_OK)
-//     {
-//         printf("\n[ERRO] Não foi possível abrir o arquivo para escrita. Monte o Cartao.\n");
-//         return;
-//     }
-//     for (int i = 0; i < 128; i++)
-//     {
-//         adc_select_input(0);
-//         uint16_t adc_value = adc_read();
-//         char buffer[50];
-//         sprintf(buffer, "%d %d\n", i + 1, adc_value);
-//         UINT bw;
-//         res = f_write(&file, buffer, strlen(buffer), &bw);
-//         if (res != FR_OK)
-//         {
-//             printf("[ERRO] Não foi possível escrever no arquivo. Monte o Cartao.\n");
-//             f_close(&file);
-//             return;
-//         }
-//         sleep_ms(100);
-//     }
-//     f_close(&file);
-//     printf("\nDados do ADC salvos no arquivo %s.\n\n", filename);
-// }
+// Função para armazenar os dados no arquivo *.csv
+void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
+    FIL file;
+    FRESULT res;
+
+    // Tenta abrir para append, cria se não existir
+    res = f_open(&file, logger_file->filename, FA_OPEN_APPEND | FA_WRITE);
+    if (res != FR_OK){
+        printf("\n[ERRO - save_imu_data] Não foi possível abrir o arquivo para escrita. Monte o Cartao.\n");
+        return;
+    }
+
+    // Escreve cabeçalho no inicio
+    if (f_size(&file) == 0) {
+        char header[] = "index,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll\n";
+        UINT bw;
+        f_write(&file, header, strlen(header), &bw);
+    }
+
+    char buffer[120];
+    sprintf(buffer, "%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+            logger_file->index,
+            mpu_data.accel_x, mpu_data.accel_y, mpu_data.accel_z,
+            mpu_data.gyro_x, mpu_data.gyro_y, mpu_data.gyro_z,
+            mpu_data.pitch, mpu_data.roll);
+
+    UINT bw;
+    res = f_write(&file, buffer, strlen(buffer), &bw);
+    if(res != FR_OK){
+        printf("\n[ERRO - save_imu_data] Não foi possível escrever no arquivo. Monte o Cartao.\n");
+        f_close(&file);
+        return;
+    }
+
+    logger_file->index++;
+
+    f_close(&file);
+    printf("[save_imu_data] Dados do ADC salvos no arquivo %s.\n", logger_file->filename);
+}

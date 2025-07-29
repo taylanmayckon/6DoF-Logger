@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
+#include "string.h"
 #include <time.h>
 
 #include "mpu6050.h"
@@ -41,6 +42,7 @@
 // Structs do MPU6050
 mpu6050_raw_data_t mpu_raw_data;
 mpu6050_data_t mpu_data;
+logger_file_t logger_file;
 
 // Structs do cartão SD
 sdcard_cmds_t sdcard_cmds;
@@ -63,12 +65,8 @@ void gpio_irq_handler(uint gpio, uint32_t events){
         
         // Iniciar/parar captura de dados
         if(gpio==BUTTON_B){
-            display_page++;
+            sdcard_cmds.save_data = !sdcard_cmds.save_data;
         }
-        
-
-        if(display_page>num_pages) display_page=num_pages;
-        if(display_page<1) display_page=1;
     }
 }
 
@@ -101,30 +99,39 @@ int main(){
     sdcard_cmds.run_mount = false;
     sdcard_cmds.run_unmount = false;
     sdcard_cmds.is_mounted = false;
+    sdcard_cmds.save_data = false;
+
+    strcpy(logger_file.filename, "imu_data1.csv");
+    logger_file.index = 0;
 
     while (true){
-        if(sdcard_cmds.run_mount){
-            printf("[run_mount] Montando o SD...\n");
-            run_mount();
-            sdcard_cmds.is_mounted = true;
-            sdcard_cmds.run_mount = false;
-            printf("[run_mount] SD montado!\n");
+        if(sdcard_cmds.save_data){
+            // Lê os dados do MPU6050
+            mpu6050_read_raw(&mpu_raw_data);
+            // Processa os dados brutos
+            mpu6050_proccess_data(mpu_raw_data, &mpu_data);
+            // Debug dos dados
+            mpu6050_debug_data(mpu_data);
+            // Salva os dados no cartão SD
+            save_imu_data(&logger_file, mpu_data);
         }
-        if(sdcard_cmds.run_unmount){
-            printf("[run_unmount] Desmontando o SD...\n");
-            run_unmount();
-            sdcard_cmds.is_mounted = false;
-            sdcard_cmds.run_unmount = false;
-            printf("[run_unmount] SD desmontado!\n");
+        else{
+            if(sdcard_cmds.run_mount){
+                printf("[run_mount] Montando o SD...\n");
+                run_mount();
+                sdcard_cmds.is_mounted = true;
+                sdcard_cmds.run_mount = false;
+                printf("[run_mount] SD montado!\n");
+            }
+            if(sdcard_cmds.run_unmount){
+                printf("[run_unmount] Desmontando o SD...\n");
+                run_unmount();
+                sdcard_cmds.is_mounted = false;
+                sdcard_cmds.run_unmount = false;
+                printf("[run_unmount] SD desmontado!\n");
+            }
         }
 
-        // Lê os dados do MPU6050
-        mpu6050_read_raw(&mpu_raw_data);
-        // Processa os dados brutos
-        mpu6050_proccess_data(mpu_raw_data, &mpu_data);
-        // Debug dos dados
-        mpu6050_debug_data(mpu_data);
-        
-        sleep_ms(1000);
+        sleep_ms(100);
     }
 }
