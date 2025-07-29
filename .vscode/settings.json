@@ -41,6 +41,8 @@
         "stdio.h": "c",
         "sd_card.h": "c",
         "time.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c"
     }
 }

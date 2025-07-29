@@ -8,6 +8,7 @@
 #include "logger.h"
 #include "hardware/i2c.h"
 #include "hardware/rtc.h"
+#include "hardware/pwm.h"
 
 #include "ff.h"
 #include "diskio.h"
@@ -47,6 +48,24 @@ logger_file_t logger_file;
 // Structs do cartão SD
 sdcard_cmds_t sdcard_cmds;
 
+// Configurações para o PWM
+uint wrap = 2000;
+uint clkdiv = 25;
+
+// Enum para o feedback do LED RGB
+enum led_states_t led_state;
+
+// -> Funções Auxiliares =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Função para configurar o PWM e iniciar com 0% de DC
+void set_pwm(uint gpio, uint wrap){
+    gpio_set_function(gpio, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(gpio);
+    pwm_set_clkdiv(slice_num, clkdiv);
+    pwm_set_wrap(slice_num, wrap);
+    pwm_set_enabled(slice_num, true); 
+    pwm_set_gpio_level(gpio, 0);
+}
+
 // -> ISR dos Botões =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Tratamento de interrupções 
 int display_page = 1;
@@ -67,6 +86,7 @@ void gpio_irq_handler(uint gpio, uint32_t events){
         if(gpio==BUTTON_B){
             if(!sdcard_cmds.save_data) sdcard_cmds.handle_filename = true;
             sdcard_cmds.save_data = !sdcard_cmds.save_data;
+            if(!sdcard_cmds.save_data) led_state = INIT_MOUNT_SD;
         }
     }
 }
@@ -96,6 +116,13 @@ int main(){
     gpio_set_dir(BUTTON_B, GPIO_IN);
     gpio_pull_up(BUTTON_B);
     gpio_set_irq_enabled_with_callback(BUTTON_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+    
+    // Iniciando o LED RGB
+    set_pwm(LED_RED, wrap);
+    set_pwm(LED_GREEN, wrap);
+    set_pwm(LED_BLUE, wrap);
+    led_state = INIT_MOUNT_SD;
+    handle_rgb_led(led_state, wrap);
 
     sdcard_cmds.run_mount = false;
     sdcard_cmds.run_unmount = false;
@@ -103,13 +130,24 @@ int main(){
     sdcard_cmds.save_data = false;
     sdcard_cmds.handle_filename = false;
 
+    // INIT_MOUNT_SD,
+    // READY_FOR_SAVE,
+    // SAVE_READ_SD,
+    // ERROR
+
     while (true){
+        // Atualiza a cor do LED
+        handle_rgb_led(led_state, wrap);
+
+        // Atualiza o nome do arquivo, quando necessário
         if(sdcard_cmds.handle_filename){
             handle_filename(&logger_file);
             sdcard_cmds.handle_filename = false;
         }
 
+        // Salva os dados, quando necessário
         if(sdcard_cmds.save_data){
+            led_state = SAVE_READ_SD;
             // Lê os dados do MPU6050
             mpu6050_read_raw(&mpu_raw_data);
             // Processa os dados brutos
@@ -119,13 +157,23 @@ int main(){
             // Salva os dados no cartão SD
             save_imu_data(&logger_file, mpu_data);
         }
-        else{
+        else{ // Montagem/desmontagem do SD Card
             if(sdcard_cmds.run_mount){
+                led_state = INIT_MOUNT_SD;
                 printf("[run_mount] Montando o SD...\n");
-                run_mount();
-                sdcard_cmds.is_mounted = true;
-                sdcard_cmds.run_mount = false;
-                printf("[run_mount] SD montado!\n\n");
+                // Tenta montar e retorna sucesso/erro
+                if(!run_mount()){
+                    led_state = ERROR;
+                    printf("[ERRO - run_mount] Falha ao montar o SD!\n\n");
+                    sdcard_cmds.is_mounted = false;
+                    sdcard_cmds.run_mount = false;
+                }
+                else{
+                    printf("[run_mount] SD montado!\n\n");
+                    sdcard_cmds.is_mounted = true;
+                    sdcard_cmds.run_mount = false;
+                    led_state = READY_FOR_SAVE;
+                }
             }
             if(sdcard_cmds.run_unmount){
                 printf("[run_unmount] Desmontando o SD...\n");
@@ -133,6 +181,7 @@ int main(){
                 sdcard_cmds.is_mounted = false;
                 sdcard_cmds.run_unmount = false;
                 printf("[run_unmount] SD desmontado!\n\n");
+                led_state = UNMOUNT;
             }
         }
 

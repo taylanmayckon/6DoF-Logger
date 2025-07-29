@@ -4,6 +4,11 @@
 #include <stdbool.h>
 #include "mpu6050.h"
 
+// GPIO utilizada
+#define LED_RED 13
+#define LED_GREEN 11
+#define LED_BLUE 12 
+
 typedef void (*p_fn_t)();
 
 typedef struct{
@@ -20,16 +25,19 @@ typedef struct{
     int index;
 } logger_file_t;
 
-typedef struct{
-    char const *const command;
-    p_fn_t const function;
-    char const *const help;
-} cmd_def_t;
+enum led_states_t{
+    INIT_MOUNT_SD,
+    READY_FOR_SAVE,
+    SAVE_READ_SD,
+    UNMOUNT,
+    ERROR
+};
 
-void run_mount();
+bool run_mount();
 void run_unmount();
 void read_file(const char *filename);
 void handle_filename(logger_file_t *logger_file);
 void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data);
+void handle_rgb_led(enum led_states_t led_state, int wrap);
 
 #endif

@@ -1,6 +1,7 @@
 #include "logger.h"
 #include "pico/stdlib.h"
 #include "hardware/rtc.h"
+#include "hardware/pwm.h"
 #include <time.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -15,9 +16,6 @@
 #include "rtc.h"
 #include "sd_card.h"
 
-static bool logger_enabled;
-static const uint32_t period = 1000;
-static absolute_time_t next_log_time;
 
 static sd_card_t *sd_get_by_name(const char *const name){
     for (size_t i = 0; i < sd_get_num(); ++i)
@@ -115,7 +113,7 @@ static void run_format(){
 }
 
 
-void run_mount(){
+bool run_mount(){
     const char *arg1 = strtok(NULL, " ");
     if (!arg1)
         arg1 = sd_get_by_num(0)->pcName;
@@ -123,18 +121,18 @@ void run_mount(){
     if (!p_fs)
     {
         printf("Unknown logical drive number: \"%s\"\n", arg1);
-        return;
+        return false;
     }
     FRESULT fr = f_mount(p_fs, arg1, 1);
-    if (FR_OK != fr)
-    {
+    if (FR_OK != fr){
         printf("f_mount error: %s (%d)\n", FRESULT_str(fr), fr);
-        return;
+        return false;
     }
     sd_card_t *pSD = sd_get_by_name(arg1);
     myASSERT(pSD);
     pSD->mounted = true;
     printf("Processo de montagem do SD ( %s ) concluído\n", pSD->pcName);
+    return true;
 }
 
 
@@ -261,30 +259,6 @@ static void run_cat(){
         printf("f_open error: %s (%d)\n", FRESULT_str(fr), fr);
 }
 
-
-static void run_help(){
-    printf("\nComandos disponíveis:\n\n");
-    printf("Digite 'a' para montar o cartão SD\n");
-    printf("Digite 'b' para desmontar o cartão SD\n");
-    printf("Digite 'c' para listar arquivos\n");
-    printf("Digite 'd' para mostrar conteúdo do arquivo\n");
-    printf("Digite 'e' para obter espaço livre no cartão SD\n");
-    printf("Digite 'f' para capturar dados do ADC e salvar no arquivo\n");
-    printf("Digite 'g' para formatar o cartão SD\n");
-    printf("Digite 'h' para exibir os comandos disponíveis\n");
-    printf("\nEscolha o comando:  ");
-}
-
-static cmd_def_t cmds[] = {
-    {"setrtc", run_setrtc, "setrtc <DD> <MM> <YY> <hh> <mm> <ss>: Set Real Time Clock"},
-    {"format", run_format, "format [<drive#:>]: Formata o cartão SD"},
-    {"mount", run_mount, "mount [<drive#:>]: Monta o cartão SD"},
-    {"unmount", run_unmount, "unmount <drive#:>: Desmonta o cartão SD"},
-    {"getfree", run_getfree, "getfree [<drive#:>]: Espaço livre"},
-    {"ls", run_ls, "ls: Lista arquivos"},
-    {"cat", run_cat, "cat <filename>: Mostra conteúdo do arquivo"},
-    {"help", run_help, "help: Mostra comandos disponíveis"}};
-
 // Função para ler o conteúdo de um arquivo e exibir no terminal
 void read_file(const char *filename){
     FIL file;
@@ -367,4 +341,44 @@ void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
 
     f_close(&file);
     printf("[save_imu_data] Dados do ADC salvos no arquivo %s.\n\n", logger_file->filename);
+}
+
+
+// Função para atualizar a cor do LED RGB
+bool blink_led = false;
+
+void handle_rgb_led(enum led_states_t led_state, int wrap){
+    switch(led_state){
+        case INIT_MOUNT_SD:
+            pwm_set_gpio_level(LED_RED, wrap*0.02);
+            pwm_set_gpio_level(LED_GREEN, wrap*0.02);
+            pwm_set_gpio_level(LED_BLUE, 0);
+            break;
+        
+        case READY_FOR_SAVE:
+            pwm_set_gpio_level(LED_RED, 0);
+            pwm_set_gpio_level(LED_GREEN, wrap*0.04);
+            pwm_set_gpio_level(LED_BLUE, 0);
+            break;
+
+        case SAVE_READ_SD:
+            blink_led = !blink_led;
+            pwm_set_gpio_level(LED_RED, 0);
+            pwm_set_gpio_level(LED_GREEN, 0);
+            pwm_set_gpio_level(LED_BLUE, blink_led*wrap*0.04);
+            break;
+        
+        case UNMOUNT:
+            pwm_set_gpio_level(LED_RED, wrap*0.04);
+            pwm_set_gpio_level(LED_GREEN, 0);
+            pwm_set_gpio_level(LED_BLUE, 0);
+            break;
+
+        case ERROR:
+            blink_led = !blink_led;
+            pwm_set_gpio_level(LED_RED, blink_led*wrap*0.02);
+            pwm_set_gpio_level(LED_GREEN, 0);
+            pwm_set_gpio_level(LED_BLUE, blink_led*wrap*0.02);
+            break;
+    }
 }
