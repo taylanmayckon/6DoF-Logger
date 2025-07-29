@@ -289,7 +289,7 @@ void handle_filename(logger_file_t *logger_file){
     char name[40];
 
     while(1){
-        sprintf(name, "imu_data%d.csv", index);
+        sprintf(name, "LOG%d.csv", index);
         FRESULT res = f_stat(name, &fno);
         if(res == FR_NO_FILE){
             strcpy(logger_file->filename, name);

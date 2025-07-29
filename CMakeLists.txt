@@ -24,7 +24,7 @@ pico_sdk_init()
 include_directories( ${CMAKE_SOURCE_DIR}/lib )
 add_subdirectory(lib/FatFs_SPI)
 
-add_executable(6DoF-Logger 6DoF-Logger.c lib/hw_config.c lib/mpu6050.c lib/logger.c)
+add_executable(6DoF-Logger 6DoF-Logger.c lib/hw_config.c lib/mpu6050.c lib/logger.c lib/ssd1306.c)
 
 pico_set_program_name(6DoF-Logger "6DoF-Logger")
 pico_set_program_version(6DoF-Logger "0.1")

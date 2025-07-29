@@ -6,6 +6,8 @@
 
 #include "mpu6050.h"
 #include "logger.h"
+#include "ssd1306.h"
+#include "font.h"
 #include "hardware/i2c.h"
 #include "hardware/rtc.h"
 #include "hardware/pwm.h"
@@ -39,6 +41,14 @@
 #define LED_MATRIX_PIN 7
 #define BUZZER_A 21
 #define BUZZER_B 10
+
+// Configurações da I2C do display
+#define I2C_PORT_DISP i2c1
+#define I2C_SDA_DISP 14
+#define I2C_SCL_DISP 15
+#define endereco 0x3C
+bool cor = true;
+ssd1306_t ssd;
 
 // Structs do MPU6050
 mpu6050_raw_data_t mpu_raw_data;
@@ -109,6 +119,17 @@ int main(){
     // Declara os pinos como I2C na Binary Info
     bi_decl(bi_2pins_with_func(I2C_SDA, I2C_SCL, GPIO_FUNC_I2C));
     mpu6050_reset();
+
+    // Iniciando o display
+    i2c_init(I2C_PORT_DISP, 400 * 1000);
+    gpio_set_function(I2C_SDA_DISP, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL_DISP, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA_DISP);
+    gpio_pull_up(I2C_SCL_DISP);
+
+    ssd1306_init(&ssd, WIDTH, HEIGHT, false, endereco, I2C_PORT_DISP);
+    ssd1306_config(&ssd);
+    ssd1306_fill(&ssd, false);
 
     // Iniciando os botões
     gpio_init(BUTTON_A);
@@ -208,6 +229,51 @@ int main(){
             }
         }
 
+        // Display OLED
+        char str_index[13];
+        sprintf(str_index, "COLETA: %d", logger_file.index);
+
+        ssd1306_fill(&ssd, false);
+        ssd1306_rect(&ssd, 0, 0, 128, 64, cor, !cor);
+        ssd1306_rect(&ssd, 0, 0, 128, 12, cor, cor); // Fundo preenchido
+        // LINHA 1 - STATUS
+        ssd1306_draw_string(&ssd, "6DoF-Logger", 4, 3, true);
+        switch(led_state){
+            case INIT_MOUNT_SD:
+                ssd1306_draw_string(&ssd, "INICIALIZANDO", 4, 18, false);
+                ssd1306_draw_string(&ssd, "MONTE COM", 4, 34, false);
+                ssd1306_draw_string(&ssd, "BOTAO A", 4, 50, false);
+                break;
+            case READY_FOR_SAVE:
+                ssd1306_draw_string(&ssd, "SD MONTADO", 4, 18, false);
+                ssd1306_draw_string(&ssd, "PRONTO PARA", 4, 28, false);
+                ssd1306_draw_string(&ssd, "GRAVAR DADOS", 4, 38, false);
+                ssd1306_draw_string(&ssd, "COM BOTAO B", 4, 48, false);
+                break;
+            case SAVE_READ_SD:
+                ssd1306_draw_string(&ssd, "GRAVANDO DADOS", 4, 14, false);
+                ssd1306_draw_string(&ssd, logger_file.filename, 4, 24, false);
+                ssd1306_draw_string(&ssd, str_index, 4, 34, false);
+                ssd1306_draw_string(&ssd, "PARE COM ", 4, 44, false);
+                ssd1306_draw_string(&ssd, "BOTAO B", 4, 54, false);
+                break;
+            case UNMOUNT:
+                ssd1306_draw_string(&ssd, "DESMONTADO", 4, 18, false);
+                ssd1306_draw_string(&ssd, "REMOVA O SD", 4, 28, false);
+                ssd1306_draw_string(&ssd, "OU MONTE DENOVO", 4, 38, false);
+                ssd1306_draw_string(&ssd, "COM BOTAO A", 4, 48, false);
+                break;
+            case ERROR:
+                ssd1306_draw_string(&ssd, "ERRO DETECTADO", 4, 14, false);
+                ssd1306_draw_string(&ssd, "VERIFIQUE O", 4, 24, false);
+                ssd1306_draw_string(&ssd, "CARTAO SD E", 4, 34, false);
+                ssd1306_draw_string(&ssd, "TENTE DENOVO", 4, 44, false);
+                break;
+        }
+
+
+
+        ssd1306_send_data(&ssd);
         sleep_ms(100);
     }
 }
