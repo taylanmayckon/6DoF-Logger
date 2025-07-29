@@ -15,7 +15,8 @@
 #define I2C_SCL_DISP 15
 #define ENDERECO_DISP 0x3C            
 
-// Struct do MPU6050
+// Structs do MPU6050
+mpu6050_raw_data_t mpu_raw_data;
 mpu6050_data_t mpu_data;
 
 int main(){
@@ -35,13 +36,12 @@ int main(){
 
     while (true){
         // Lê os dados do MPU6050
-        mpu6050_read_raw(&mpu_data);
-
-        // Debug
-        printf("[ACELERACAO (g)]\n");
-        printf("X: %d | Y: %d | Z: %d\n", mpu_data.accel_x/16384, mpu_data.accel_y/16384, mpu_data.accel_z/16384);
-        printf("[GIROSCOPIO (dps)]\n");
-        printf("X: %d | Y: %d | Z: %d\n\n", mpu_data.gyro_x/131, mpu_data.gyro_y/131, mpu_data.gyro_z/131);
+        mpu6050_read_raw(&mpu_raw_data);
+        // Processa os dados brutos
+        mpu6050_proccess_data(mpu_raw_data, &mpu_data);
+        // Debug dos dados
+        mpu6050_debug_data(mpu_data);
+        
         sleep_ms(1000);
     }
 }
