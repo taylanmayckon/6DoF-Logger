@@ -54,6 +54,7 @@ ssd1306_t ssd;
 mpu6050_raw_data_t mpu_raw_data;
 mpu6050_data_t mpu_data;
 logger_file_t logger_file;
+mpu6050_filtered_t mpu_data_kf;
 
 // Structs do cartão SD
 sdcard_cmds_t sdcard_cmds;
@@ -184,10 +185,12 @@ int main(){
             mpu6050_read_raw(&mpu_raw_data);
             // Processa os dados brutos
             mpu6050_proccess_data(mpu_raw_data, &mpu_data);
+            // Aplica o filtro de Kalmann
+            mpu6050_kalmann_filter(mpu_data, &mpu_data_kf);
             // Debug dos dados
-            mpu6050_debug_data(mpu_data);
+            mpu6050_debug_data(mpu_data, mpu_data_kf);
             // Salva os dados no cartão SD
-            save_imu_data(&logger_file, mpu_data);
+            save_imu_data(&logger_file, mpu_data, mpu_data_kf);
         }
 
         else{ // Montagem/desmontagem do SD Card

@@ -304,7 +304,7 @@ void handle_filename(logger_file_t *logger_file){
 
 
 // Função para armazenar os dados no arquivo *.csv
-void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
+void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data, mpu6050_filtered_t mpu_filtered_data){
     FIL file;
     FRESULT res;
 
@@ -317,17 +317,18 @@ void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data){
 
     // Escreve cabeçalho no inicio
     if (f_size(&file) == 0) {
-        char header[] = "dt,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll\n";
+        char header[] = "dt,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll,kf_pitch,kf_roll\n";
         UINT bw;
         f_write(&file, header, strlen(header), &bw);
     }
 
     char buffer[120];
-    sprintf(buffer, "%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+    sprintf(buffer, "%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
             logger_file->index,
             mpu_data.accel_x, mpu_data.accel_y, mpu_data.accel_z,
             mpu_data.gyro_x, mpu_data.gyro_y, mpu_data.gyro_z,
-            mpu_data.pitch, mpu_data.roll);
+            mpu_data.pitch, mpu_data.roll,
+            mpu_filtered_data.pitch_output[0], mpu_filtered_data.roll_output[0]);
 
     UINT bw;
     res = f_write(&file, buffer, strlen(buffer), &bw);

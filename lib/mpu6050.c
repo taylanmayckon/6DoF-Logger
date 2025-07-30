@@ -78,12 +78,53 @@ void mpu6050_proccess_data(mpu6050_raw_data_t raw_data, mpu6050_data_t *final_da
 }
 
 // Função para debug do MPU6050
-void mpu6050_debug_data(mpu6050_data_t data){
+void mpu6050_debug_data(mpu6050_data_t data, mpu6050_filtered_t data_kf){
     printf("[ACELERACAO (g)]\n");
     printf("X: %.2f | Y: %.2f | Z: %.2f\n", data.accel_x, data.accel_y, data.accel_z);
     printf("[GIROSCOPIO (dps)]\n");
     printf("X: %.2f | Y: %.2f | Z: %.2f\n", data.gyro_x, data.gyro_y, data.gyro_z);
     printf("[ANGULO (graus)]\n");
     printf("PITCH: %.2f | ROLL: %.2f\n", data.pitch, data.roll);
+    printf("[ANGULO KALMANN FILTER (graus)]\n");
+    printf("PITCH: %.2f | ROLL: %.2f\n", data_kf.pitch_output[0], data_kf.roll_output[0]);
     printf("=-=-=-=-=-=-=-=-=-=-=\n");
+}
+
+// Função para calculo do filtro de Kalmann 1d
+static void mpu6050_kalman_1d(float *kalmanState, float *kalmanUncertainty, float kalmanInput, float kalmanMeasurement){
+    float dt = 0.1;
+
+    *kalmanState = *kalmanState + dt * kalmanInput;
+
+    // Predição da Incerteza
+    *kalmanUncertainty = *kalmanUncertainty + dt * dt * 10.0 * 10.0;
+    // Cálculo do Ganho de Kalman
+    float kalmanGain = *kalmanUncertainty / (*kalmanUncertainty + 3.0 * 3.0);
+    // Atualização do Estado
+    *kalmanState = *kalmanState + kalmanGain * (kalmanMeasurement - *kalmanState);
+    // Atualização da Incerteza 
+    *kalmanUncertainty = (1.0 - kalmanGain) * *kalmanUncertainty;
+}
+
+// Função para um Filtro de Kalmann Simplificado
+static float kalmanAngleRoll = 0.0;
+static float kalmanUncertaintyAngleRoll = 2.0 * 2.0; // 4.0
+static float kalmanAnglePitch = 0.0;
+static float kalmanUncertaintyAnglePitch = 2.0 * 2.0; // 4.0
+void mpu6050_kalmann_filter(mpu6050_data_t data, mpu6050_filtered_t *mpu6050_filtered){
+    // ----- Filtro para Roll -----
+    // Passamos os endereços das variáveis estáticas para que elas sejam atualizadas diretamente
+    mpu6050_kalman_1d(&kalmanAngleRoll, &kalmanUncertaintyAngleRoll, data.gyro_x, data.roll);
+
+    // Armazena os resultados no struct de saída
+    mpu6050_filtered->roll_output[0] = kalmanAngleRoll;
+    mpu6050_filtered->roll_output[1] = kalmanUncertaintyAngleRoll;
+
+    // ----- Filtro para Pitch -----
+    // Passamos os endereços das variáveis estáticas para que elas sejam atualizadas diretamente
+    mpu6050_kalman_1d(&kalmanAnglePitch, &kalmanUncertaintyAnglePitch, data.gyro_y, data.pitch);
+
+    // Armazena os resultados no struct de saída
+    mpu6050_filtered->pitch_output[0] = kalmanAnglePitch;
+    mpu6050_filtered->pitch_output[1] = kalmanUncertaintyAnglePitch;
 }

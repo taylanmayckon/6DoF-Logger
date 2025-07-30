@@ -28,9 +28,15 @@ typedef struct{
     float temp;
 } mpu6050_data_t;
 
+typedef struct{
+    float pitch_output[2];
+    float roll_output[2];
+} mpu6050_filtered_t;
+
 void mpu6050_reset();
 void mpu6050_read_raw(mpu6050_raw_data_t *data);
 void mpu6050_proccess_data(mpu6050_raw_data_t raw_data, mpu6050_data_t *final_data);
-void mpu6050_debug_data(mpu6050_data_t data);
+void mpu6050_debug_data(mpu6050_data_t data, mpu6050_filtered_t data_kf);
+void mpu6050_kalmann_filter(mpu6050_data_t data, mpu6050_filtered_t *mpu6050_filtered);
 
 #endif
