@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # AJUSTA O NOME DO ARQUIVO
-filename = 'python/LOG1.csv'
+filename = 'python/LOG9.csv'
 dt = 0.1
 
 # Verifica se achou o arquivo
@@ -18,12 +18,12 @@ df_leitura['tempo'] = df_leitura['index'] * dt # Gera label do tempo
 
 # -> ACELEROMETRO
 plt.figure(figsize=(12, 6))
-plt.plot(df_leitura['tempo'], df_leitura['accel_x'], label='Aceleração X ($m/s^2$)')
-plt.plot(df_leitura['tempo'], df_leitura['accel_y'], label='Aceleração Y ($m/s^2$)')
-plt.plot(df_leitura['tempo'], df_leitura['accel_z'], label='Aceleração Z ($m/s^2$)')
+plt.plot(df_leitura['tempo'], df_leitura['accel_x'], label='Aceleração X (g)')
+plt.plot(df_leitura['tempo'], df_leitura['accel_y'], label='Aceleração Y (g)')
+plt.plot(df_leitura['tempo'], df_leitura['accel_z'], label='Aceleração Z (g)')
 plt.title('Acelerômetro', fontsize=16)
 plt.xlabel('Tempo (s)', fontsize=12)
-plt.ylabel('Aceleração ($m/s^2$)', fontsize=12)
+plt.ylabel('Aceleração (g)', fontsize=12)
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
