@@ -317,7 +317,7 @@ void save_imu_data(logger_file_t *logger_file, mpu6050_data_t mpu_data, mpu6050_
 
     // Escreve cabeçalho no inicio
     if (f_size(&file) == 0) {
-        char header[] = "dt,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll,kf_pitch,kf_roll\n";
+        char header[] = "index,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,pitch,roll,kf_pitch,kf_roll\n";
         UINT bw;
         f_write(&file, header, strlen(header), &bw);
     }
